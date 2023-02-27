@@ -6,3 +6,6 @@ import: github.com/sanderPostma/traefik-validate-jwt
 summary: 'Validates the JWT token before checking keys against the references validation server'
 
 testData:
+  filters:
+    - tenantId: e2a42b2f-7460-4499-afc2-425315ef058
+      appIds: [ "4fc07429-f068-47fa-b5cd-5b460ec8529d" ]
