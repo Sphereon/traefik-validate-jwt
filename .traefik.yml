@@ -1,0 +1,8 @@
+displayName: JWT bearer token validator
+type: middleware
+
+import: github.com/sanderPostma/traefik-validate-jwt
+
+summary: 'Validates the JWT token before checking keys against the references validation server'
+
+testData:
