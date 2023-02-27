@@ -12,13 +12,9 @@ import (
 	"time"
 )
 
-type AppIdFilter struct {
-	Appids []string `json:"appIds,omitempty"`
-}
-
 type TenantIdFilter struct {
-	TenantId     string        `json:"tenantId,omitempty"`
-	AppIdFilters []AppIdFilter `json:"appIdFilters,omitempty"`
+	TenantId string   `json:"tenantId,omitempty"`
+	AppIds   []string `json:"appIds,omitempty"`
 }
 
 // Config the plugin configuration.
@@ -146,13 +142,39 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Print the token claims
 	claims := token.Claims.(jwt.MapClaims)
 	expTime := time.Unix(int64(claims["exp"].(float64)), 0)
 	if expTime.After(time.Now()) {
 		fmt.Println("Token has expired")
 		return
 	}
+
+	tenantIdFound := false
+	appIdFound := false
+	tenantIdClaim := claims["tid"].(string)
+	appIdClaim := claims["appid"].(string)
+	for _, filter := range m.filters {
+		if filter.TenantId == tenantIdClaim {
+			tenantIdFound = true
+			for _, appId := range filter.AppIds {
+				if appId == appIdClaim {
+					appIdFound = true
+					break
+				}
+			}
+			break
+		}
+	}
+
+	if !tenantIdFound {
+		fmt.Println("no match found for tenant id", tenantIdClaim)
+		return
+	}
+	if !appIdFound {
+		fmt.Println("no match found for app id", appIdClaim)
+		return
+	}
+
 	fmt.Println("Request authorized")
 	m.next.ServeHTTP(rw, req)
 }

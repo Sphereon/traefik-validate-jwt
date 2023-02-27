@@ -1,4 +1,4 @@
-displayName: JWT bearer token validator
+displayName: JWT bearer token validator, mainly te work with Azure app registrations
 type: middleware
 
 import: github.com/sanderPostma/traefik-validate-jwt
