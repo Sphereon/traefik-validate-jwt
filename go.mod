@@ -1,4 +1,4 @@
-module traefik-validate-jwt
+module github.com/sanderPostma/traefik-validate-jwt
 
 go 1.20
 
