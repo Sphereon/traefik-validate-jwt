@@ -36,10 +36,8 @@ type Middleware struct {
 
 // New created a new Middleware plugin.
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	fmt.Println("config:", config)
-
 	if len(config.TenantIdFilters) == 0 {
-		return nil, errors.New("no filters could be found, jwt-validator not created")
+		return nil, errors.New(fmt.Sprintln("no filters could be found, jwt-validator not created. config:", config))
 	}
 
 	m := &Middleware{
