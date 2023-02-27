@@ -9,3 +9,6 @@ testData:
   filters:
     - tenantId: e2a42b2f-7460-4499-afc2-425315ef058
       appIds: [ "4fc07429-f068-47fa-b5cd-5b460ec8529d" ]
+  TenantIdFilters:
+    - TenantId: e2a42b2f-7460-4499-afc2-425315ef058
+      AppIds: [ "4fc07429-f068-47fa-b5cd-5b460ec8529d" ]
