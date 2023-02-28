@@ -46,6 +46,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	if len(config.TenantIdFilters) == 0 && !config.IsTest {
 		return nil, errors.New(fmt.Sprintln("no filters could be found, jwt-validator not created. config:", config))
 	}
+	log.Println("Received config", config)
 
 	m := &Middleware{
 		next:       next,
