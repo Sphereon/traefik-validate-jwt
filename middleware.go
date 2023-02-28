@@ -46,18 +46,16 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	if len(config.TenantIdFilters) == 0 && !config.IsTest {
 		return nil, errors.New(fmt.Sprintln("no filters could be found, jwt-validator not created. config:", config))
 	}
-	log.Println("Received config", config)
 
 	m := &Middleware{
-		next:       next,
-		name:       name,
-		filters:    config.TenantIdFilters,
-		jwksURIMap: map[string]string{},
-		jwksMap:    map[string]*keyfunc.JWKS{},
-		isTest:     config.IsTest,
+		next:           next,
+		name:           name,
+		filters:        config.TenantIdFilters,
+		jwksURIMap:     map[string]string{},
+		jwksMap:        map[string]*keyfunc.JWKS{},
+		isTest:         config.IsTest,
+		keyFuncOptions: buildKeyFuncOptions(),
 	}
-
-	m.keyFuncOptions = buildKeyFuncOptions()
 	return m, nil
 }
 
