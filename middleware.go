@@ -102,7 +102,7 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	})
 	if err != nil {
 		rw.WriteHeader(http.StatusUnauthorized)
-		rw.Write([]byte(fmt.Sprint("401 - Token is invalid")))
+		rw.Write([]byte(fmt.Sprint("401 - Token could not be parsed:", err)))
 		return
 	}
 
