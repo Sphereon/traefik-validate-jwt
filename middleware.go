@@ -67,6 +67,13 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	defer func() {
+		if err := recover(); err != nil {
+			rw.WriteHeader(http.StatusUnauthorized)
+			rw.Write([]byte(fmt.Sprint("500 - panic occurred:", err)))
+		}
+	}()
+
 	// Assert input
 	if req.RemoteAddr == "" {
 		rw.WriteHeader(http.StatusUnauthorized)
@@ -76,7 +83,7 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	tokenString := req.Header.Get("Authorization")
 	if tokenString == "" {
 		rw.WriteHeader(http.StatusUnauthorized)
-		rw.Write([]byte(fmt.Sprint("401 - Authorization header is empty or non-existant.")))
+		rw.Write([]byte(fmt.Sprint("401 - Authorization header is empty or non-existent.")))
 		return
 	}
 	if !strings.HasPrefix(tokenString, "Bearer ") {
