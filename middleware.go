@@ -150,7 +150,7 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if m.next != nil {
 		m.next.ServeHTTP(rw, req)
 	} else {
-		fmt.Println("Request authorized")
+		log.Println("Request authorized")
 	}
 }
 

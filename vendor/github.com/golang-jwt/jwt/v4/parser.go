@@ -97,14 +97,8 @@ func (p *Parser) ParseWithClaims(tokenString string, claims Claims, keyFunc Keyf
 
 	// Perform validation
 	token.Signature = parts[2]
-	mt, _ := json.Marshal(token)
-	log.Println("token:", string(mt))
-	mk, _ := json.Marshal(key)
-	log.Println("key:", string(mk))
 	signingString := strings.Join(parts[0:2], ".")
-	log.Println("signingString:", signingString)
 	if err = token.Method.Verify(signingString, token.Signature, key); err != nil {
-		log.Println("method:", token.Method.Alg(), "err:", err)
 		vErr.Inner = err
 		vErr.Errors |= ValidationErrorSignatureInvalid
 	}

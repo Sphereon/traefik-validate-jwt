@@ -58,11 +58,11 @@ func (m *SigningMethodRSA) Verify(signingString, signature string, key interface
 
 	var rsaKey *rsa.PublicKey = &rsa.PublicKey{}
 
+	// FIXME Cast from interface fails when using yaegi, json marshall/unmarshall as workaround
 	mk, err := json.Marshal(key)
 	if err != nil {
 		return err
 	}
-
 	err = json.Unmarshal(mk, rsaKey)
 	if err != nil {
 		return err
