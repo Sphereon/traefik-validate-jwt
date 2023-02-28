@@ -1,9 +1,9 @@
-displayName: JWT bearer token validator, mainly te work with Azure app registrations
+displayName: Azure AD access validator
 type: middleware
 
 import: github.com/sanderPostma/traefik-validate-jwt
 
-summary: 'Validates the JWT token before checking keys against the references validation server'
+summary: 'Authenticates against Azure app registrations by validating the JWT bearer token and checks if the configuration has a tenantId & app/clientId filter match before the request is forwarded to the target service.'
 
 testData:
   filters:
