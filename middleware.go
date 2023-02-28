@@ -69,16 +69,19 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	// Assert input
 	if req.RemoteAddr == "" {
-		fmt.Println("RemoteAddr is empty")
+		rw.WriteHeader(http.StatusUnauthorized)
+		rw.Write([]byte(fmt.Sprint("500 - RemoteAddr is empty.")))
 		return
 	}
 	tokenString := req.Header.Get("Authorization")
 	if tokenString == "" {
-		fmt.Println("Authorization header is empty")
+		rw.WriteHeader(http.StatusUnauthorized)
+		rw.Write([]byte(fmt.Sprint("401 - Authorization header is empty or non-existant.")))
 		return
 	}
 	if !strings.HasPrefix(tokenString, "Bearer ") {
-		fmt.Println("Authorization header must be a 'Bearer' token")
+		rw.WriteHeader(http.StatusUnauthorized)
+		rw.Write([]byte(fmt.Sprint("401 - Authorization header must be a 'Bearer' token")))
 		return
 	}
 
@@ -91,20 +94,23 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return jwks.Keyfunc(token)
 	})
 	if err != nil {
-		fmt.Println("Token validation failed:", err)
+		rw.WriteHeader(http.StatusUnauthorized)
+		rw.Write([]byte(fmt.Sprint("401 - Token is invalid")))
 		return
 	}
 
 	// Check if the token is valid
 	if !token.Valid {
-		fmt.Println("Token is invalid")
+		rw.WriteHeader(http.StatusUnauthorized)
+		rw.Write([]byte(fmt.Sprint("401 - Token is invalid")))
 		return
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
 	expTime := time.Unix(int64(claims["exp"].(float64)), 0)
 	if time.Now().UTC().After(expTime) {
-		fmt.Println("Token has expired")
+		rw.WriteHeader(http.StatusUnauthorized)
+		rw.Write([]byte("401 - Token has expired"))
 		return
 	}
 
@@ -126,11 +132,13 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if !tenantIdFound {
-		fmt.Println("no match found for tenant id", tenantIdClaim)
+		rw.WriteHeader(http.StatusUnauthorized)
+		rw.Write([]byte(fmt.Sprint("401 - No match found for tenant id", tenantIdClaim)))
 		return
 	}
 	if !appIdFound {
-		fmt.Println("no match found for app id", appIdClaim)
+		rw.WriteHeader(http.StatusUnauthorized)
+		rw.Write([]byte(fmt.Sprint("401 - No match found for app id", appIdClaim)))
 		return
 	}
 
