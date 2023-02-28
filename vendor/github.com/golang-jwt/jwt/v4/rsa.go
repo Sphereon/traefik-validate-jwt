@@ -56,8 +56,7 @@ func (m *SigningMethodRSA) Verify(signingString, signature string, key interface
 		return err
 	}
 
-	var rsaKey *rsa.PublicKey
-	var ok bool
+	var rsaKey *rsa.PublicKey = &rsa.PublicKey{}
 
 	mk, err := json.Marshal(key)
 	if err != nil {
