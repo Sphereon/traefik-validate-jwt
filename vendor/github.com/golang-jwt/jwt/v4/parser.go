@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"log"
 )
 
 type Parser struct {
@@ -96,6 +97,8 @@ func (p *Parser) ParseWithClaims(tokenString string, claims Claims, keyFunc Keyf
 
 	// Perform validation
 	token.Signature = parts[2]
+	log.Println("token:", token)
+	log.Println("key:", key)
 	if err = token.Method.Verify(strings.Join(parts[0:2], "."), token.Signature, key); err != nil {
 		vErr.Inner = err
 		vErr.Errors |= ValidationErrorSignatureInvalid
