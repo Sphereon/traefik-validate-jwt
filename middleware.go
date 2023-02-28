@@ -109,7 +109,7 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	// Check if the token is valid
 	if !token.Valid {
 		rw.WriteHeader(http.StatusUnauthorized)
-		rw.Write([]byte(fmt.Sprint("401 - Token is invalid")))
+		rw.Write([]byte(fmt.Sprint("401 - Token is invalid", token)))
 		return
 	}
 
