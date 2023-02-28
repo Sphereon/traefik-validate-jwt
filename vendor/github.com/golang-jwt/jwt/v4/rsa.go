@@ -64,9 +64,9 @@ func (m *SigningMethodRSA) Verify(signingString, signature string, key interface
 		return err
 	}
 
-	json.Unmarshal(mk, rsaKey)
-	if rsaKey, ok = key.(*rsa.PublicKey); !ok {
-		return ErrInvalidKeyType
+	err = json.Unmarshal(mk, rsaKey)
+	if err != nil {
+		return err
 	}
 
 	// Create hasher
