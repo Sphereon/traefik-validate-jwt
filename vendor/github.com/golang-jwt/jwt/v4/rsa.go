@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/json"
 )
 
 // SigningMethodRSA implements the RSA family of signing methods.
@@ -58,6 +59,12 @@ func (m *SigningMethodRSA) Verify(signingString, signature string, key interface
 	var rsaKey *rsa.PublicKey
 	var ok bool
 
+	mk, err := json.Marshal(key)
+	if err != nil {
+		return err
+	}
+
+	json.Unmarshal(mk, rsaKey)
 	if rsaKey, ok = key.(*rsa.PublicKey); !ok {
 		return ErrInvalidKeyType
 	}
