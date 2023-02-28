@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"io/ioutil"
+	"github.com/MicahParks/keyfunc"
+	"github.com/golang-jwt/jwt/v4"
+	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -19,6 +21,7 @@ type TenantIdFilter struct {
 
 // Config the plugin configuration.
 type Config struct {
+	IsTest          bool
 	TenantIdFilters []TenantIdFilter `json:"filters,omitempty"`
 }
 
@@ -29,31 +32,45 @@ func CreateConfig() *Config {
 
 // Middleware a Middleware plugin.
 type Middleware struct {
-	next    http.Handler
-	name    string
-	filters []TenantIdFilter
+	next           http.Handler
+	name           string
+	filters        []TenantIdFilter
+	keyFuncOptions keyfunc.Options
+	jwksURIMap     map[string]string
+	jwksMap        map[string]*keyfunc.JWKS
+	isTest         bool
 }
 
 // New created a new Middleware plugin.
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	if len(config.TenantIdFilters) == 0 {
+	if len(config.TenantIdFilters) == 0 && !config.IsTest {
 		return nil, errors.New(fmt.Sprintln("no filters could be found, jwt-validator not created. config:", config))
 	}
 
 	m := &Middleware{
-		next:    next,
-		name:    name,
-		filters: config.TenantIdFilters,
+		next:       next,
+		name:       name,
+		filters:    config.TenantIdFilters,
+		jwksURIMap: map[string]string{},
+		jwksMap:    map[string]*keyfunc.JWKS{},
+		isTest:     config.IsTest,
 	}
+
+	m.keyFuncOptions = buildKeyFuncOptions()
 	return m, nil
 }
 
 func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	if m.isTest { // Skip Yaegi test because I don't think it can log on to our Azure app registration and get a valid bearer token
+		m.next.ServeHTTP(rw, req)
+		return
+	}
+
+	// Assert input
 	if req.RemoteAddr == "" {
 		fmt.Println("RemoteAddr is empty")
 		return
 	}
-
 	tokenString := req.Header.Get("Authorization")
 	if tokenString == "" {
 		fmt.Println("Authorization header is empty")
@@ -61,75 +78,16 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	if !strings.HasPrefix(tokenString, "Bearer ") {
 		fmt.Println("Authorization header must be a 'Bearer' token")
+		return
 	}
+
 	tokenString = tokenString[7:]
-	fmt.Println("tokenString:", tokenString)
-
-	// Parse the token
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Get the kid header parameter
-		kid, ok := token.Header["kid"].(string)
-		if !ok {
-			return nil, fmt.Errorf("missing kid header parameter")
-		}
-		fmt.Println("kid:", kid)
-
-		// Get the jwksURL from the idp claim
-		jwksURL, ok := m.getJwksUrl(token, ok, "idp")
-		if !ok {
-			jwksURL, ok = m.getJwksUrl(token, ok, "iss")
-			if !ok {
-				return nil, fmt.Errorf("could not determine openid-configuration from idp or iss claims")
-			}
-		}
-		fmt.Println("jwksURL:", jwksURL)
-
-		// Get the JSON Web Key Set (JWKS) from the provider's endpoint
-		jwksResp, err := http.Get(jwksURL)
+		jwks, i, err := m.getJwks(token)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get JWKS from provider's endpoint: %v", err)
+			return i, err
 		}
-		defer jwksResp.Body.Close()
-
-		jwksBody, err := ioutil.ReadAll(jwksResp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read JWKS response body: %v", err)
-		}
-
-		var jwks struct {
-			Keys []struct {
-				Kty string `json:"kty"`
-				Kid string `json:"kid"`
-				Use string `json:"use"`
-				N   string `json:"n"`
-				E   string `json:"e"`
-			} `json:"keys"`
-		}
-		if err := json.Unmarshal(jwksBody, &jwks); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal JWKS response body: %v", err)
-		}
-
-		// Find the matching JSON Web Key (JWK)
-		var jwk *jwt.Token
-		for _, key := range jwks.Keys {
-			if key.Kid == kid && key.Use == "sig" && key.Kty == "RSA" {
-				jwk = jwt.New(jwt.GetSigningMethod("RS256"))
-				jwk.Header["kid"] = key.Kid
-				jwk.Claims = jwt.MapClaims{
-					"n": key.N,
-					"e": key.E,
-				}
-				break
-			}
-		}
-
-		if jwk == nil {
-			return nil, fmt.Errorf("matching JWK not found")
-		}
-		fmt.Println("jwk:", jwk.Claims)
-
-		// Verify the token signature using the JWK
-		return jwk.Method.Verify(tokenString, jwk.Signature, jwk.Header["kid"]), nil
+		return jwks.Keyfunc(token)
 	})
 	if err != nil {
 		fmt.Println("Token validation failed:", err)
@@ -144,7 +102,7 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	claims := token.Claims.(jwt.MapClaims)
 	expTime := time.Unix(int64(claims["exp"].(float64)), 0)
-	if expTime.After(time.Now()) {
+	if time.Now().UTC().After(expTime) {
 		fmt.Println("Token has expired")
 		return
 	}
@@ -175,15 +133,81 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fmt.Println("Request authorized")
-	m.next.ServeHTTP(rw, req)
+	if m.next != nil {
+		m.next.ServeHTTP(rw, req)
+	} else {
+		fmt.Println("Request authorized")
+	}
 }
 
-func (m *Middleware) getJwksUrl(token *jwt.Token, ok bool, claimName string) (string, bool) {
-	idp, ok := token.Claims.(jwt.MapClaims)[claimName].(string)
+func (m *Middleware) getJwks(token *jwt.Token) (*keyfunc.JWKS, interface{}, error) {
+	// Get the jwksURL from the idp claim, else try iss
+	jwksURL, ok := m.getJwksUrl(token, "idp")
+	if !ok {
+		jwksURL, ok = m.getJwksUrl(token, "iss")
+		if !ok {
+			return nil, nil, fmt.Errorf("could not determine openid-configuration from idp or iss claims")
+		}
+	}
+
+	jwks, found := m.jwksMap[jwksURL]
+	if !found {
+		// Create jwks handler instance
+		var err error
+		jwks, err = keyfunc.Get(jwksURL, m.keyFuncOptions)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Failed to create JWKS from resource at the given URL.\nError: %s", err.Error())
+		}
+		m.jwksMap[jwksURL] = jwks
+	}
+	return jwks, nil, nil
+}
+
+func (m *Middleware) getJwksUrl(token *jwt.Token, claimName string) (string, bool) {
+	jwksURI, found := m.jwksURIMap[claimName]
+	if found {
+		return jwksURI, true
+	}
+
+	authServerClaim, ok := token.Claims.(jwt.MapClaims)[claimName].(string)
 	if !ok {
 		return "", false
 	}
-	jwksURL := fmt.Sprintf("%s/.well-known/openid-configuration", idp)
-	return jwksURL, true
+
+	// FIXME this is expensive when the first claim exists but does not work and the second does
+	openIdConfigUrl := fmt.Sprintf("%s/.well-known/openid-configuration", authServerClaim)
+	openIdResp, err := http.Get(openIdConfigUrl)
+	if err != nil {
+		return "", false
+	}
+	defer openIdResp.Body.Close()
+
+	openIdBody, err := io.ReadAll(openIdResp.Body)
+	if err != nil {
+		return "", false
+	}
+
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(openIdBody, &jsonData); err != nil {
+		return "", false
+	}
+
+	jwksURI, ok = jsonData["jwks_uri"].(string)
+	if ok {
+		m.jwksURIMap[claimName] = jwksURI
+	}
+	return jwksURI, ok
+}
+
+func buildKeyFuncOptions() keyfunc.Options {
+	return keyfunc.Options{
+		Ctx: context.Background(),
+		RefreshErrorHandler: func(err error) {
+			log.Printf("There was an error with the jwt.Keyfunc\nError: %s", err.Error())
+		},
+		RefreshInterval:   time.Hour,
+		RefreshRateLimit:  time.Minute * 5,
+		RefreshTimeout:    time.Second * 10,
+		RefreshUnknownKID: true,
+	}
 }
