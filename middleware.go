@@ -221,7 +221,7 @@ func buildKeyFuncOptions() keyfunc.Options {
 		RefreshErrorHandler: func(err error) {
 			log.Printf("There was an error with the jwt.Keyfunc\nError: %s", err.Error())
 		},
-		RefreshInterval:   time.Hour,
+		RefreshInterval:   0,
 		RefreshRateLimit:  time.Minute * 5,
 		RefreshTimeout:    time.Second * 10,
 		RefreshUnknownKID: true,

@@ -112,7 +112,7 @@ func (j *JWKS) backgroundRefresh() {
 	}
 
 	// Create a channel that will never send anything unless there is a refresh interval.
-	refreshInterval := make(<-chan time.Time)
+//	refreshInterval := make(<-chan time.Time)
 
 	refresh := func() {
 		err := j.refresh()
@@ -125,17 +125,17 @@ func (j *JWKS) backgroundRefresh() {
 	// Enter an infinite loop that ends when the background ends.
 	for {
 		if j.refreshInterval != 0 {
-			refreshInterval = time.After(j.refreshInterval)
+			//refreshInterval = time.After(j.refreshInterval)
 		}
 
 		select {
-		case <-refreshInterval:
+		/*case <-refreshInterval:
 			select {
 			case <-j.ctx.Done():
 				return
 			case j.refreshRequests <- refreshRequest{}:
 			default: // If the j.refreshRequests channel is full, don't send another request.
-			}
+			}*/
 
 		case req := <-j.refreshRequests:
 			refreshMux.Lock()
