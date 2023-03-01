@@ -133,12 +133,10 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		appIdClaim = extractAppId(appIdClaim)
 	}
 
-	var appIds []string
 	for _, filter := range m.filters {
 		if filter.TenantId == tenantIdClaim {
 			tenantIdFound = true
 			for _, appId := range filter.AppIds {
-				appIds = append(appIds, appId)
 				if appId == appIdClaim {
 					appIdFound = true
 					break
@@ -155,7 +153,7 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	if !appIdFound {
 		rw.WriteHeader(http.StatusUnauthorized)
-		rw.Write([]byte(fmt.Sprintf("401 - No match found for app id %s. AppIds: %vn name: ", appIdClaim, appIds, m.name)))
+		rw.Write([]byte(fmt.Sprintf("401 - No match found for app id %s. Name: %s", appIdClaim, m.name)))
 		return
 	}
 
