@@ -1,4 +1,4 @@
---- UNDER CONSTRUCTION ---
+--- UNDER CONSTRUCTION --- DO NOT USE YET
 
 ## JWT bearer token validator
 Traefik middleware, to authenticate against Azure app registrations.
