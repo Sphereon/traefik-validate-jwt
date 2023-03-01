@@ -67,7 +67,7 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			rw.WriteHeader(http.StatusUnauthorized)
+			rw.WriteHeader(http.StatusInternalServerError)
 			rw.Write([]byte(fmt.Sprint("500 - panic occurred:", err)))
 		}
 	}()
@@ -122,7 +122,16 @@ func (m *Middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	tenantIdFound := false
 	appIdFound := false
 	tenantIdClaim := claims["tid"].(string)
-	appIdClaim := claims["appid"].(string)
+	appIdClaim, ok := claims["appid"].(string)
+	if !ok {
+		appIdClaim, ok = claims["aud"].(string)
+		if !ok {
+			rw.WriteHeader(http.StatusBadRequest)
+			rw.Write([]byte(fmt.Sprint("400 - Can't get the application id from the JWT claims")))
+			return
+		}
+		appIdClaim = extractAppId(appIdClaim)
+	}
 	for _, filter := range m.filters {
 		if filter.TenantId == tenantIdClaim {
 			tenantIdFound = true
@@ -211,6 +220,13 @@ func (m *Middleware) getJwksUrl(token *jwt.Token, claimName string) (string, boo
 		m.jwksURIMap[claimName] = jwksURI
 	}
 	return jwksURI, ok
+}
+
+func extractAppId(input string) string {
+	if strings.Contains(input, "://") {
+		return strings.Split(input, "://")[1]
+	}
+	return input
 }
 
 func buildKeyFuncOptions() keyfunc.Options {
