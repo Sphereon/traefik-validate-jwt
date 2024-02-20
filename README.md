@@ -9,7 +9,7 @@ The request is forwarded if all the criteria match.
 
 The activate the plugin add the following to your Traefik arguments:
 ```
-  - "--experimental.plugins.traefik-validate-jwt.modulename=github.com/sanderPostma/traefik-validate-jwt"
+  - "--experimental.plugins.traefik-validate-jwt.modulename=github.com/sphereon/traefik-validate-jwt"
   - "--experimental.plugins.traefik-validate-jwt.version=v0.1.2"
 ```
 
